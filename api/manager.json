@@ -1,0 +1,158 @@
+// Import required modules
+import { Client } from '@notionhq/client';
+
+// Initialize Notion client with the integration token
+const notion = new Client({ auth: process.env.NOTION_TOKEN });
+
+const DB_IDS = {
+  ChatMemories: '13a77f6525cd805da065d2105029897e',
+  MemoryGroups: '13a77f6525cd802fa935eb74979e8eaa',
+  MemoryAreas: '13a77f6525cd8012b774f14846f9cd82',
+  ActivityLog: '13a77f6525cd80eea74adcc7d4fc6066',
+  UserPreferences: '13a77f6525cd80ca909ee469f38b6575',
+  AsmosPlayground: '13a77f6525cd808e8efcef6afb87de72'
+};
+
+// Main handler function for Vercel
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ message: 'Only POST requests allowed' });
+  }
+
+  const { message, userId } = req.body;
+
+  try {
+    // Step 1: Log chat message
+    const chatMemoryEntry = await logChatMessage(message);
+
+    // Step 2: Update memory grouping
+    const memoryGroup = await manageMemoryGroup(chatMemoryEntry.id, message);
+
+    // Step 3: Log activity
+    await logActivity(userId, message);
+
+    // Step 4: Handle subjective inferences
+    await manageInferences(message);
+
+    // Step 5: Retrieve contextual data for reply generation
+    const context = await retrieveContext(userId);
+
+    return res.status(200).json({ message: 'Contextual data retrieved', context });
+  } catch (error) {
+    console.error('Error:', error);
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+}
+
+// Utility function to log chat messages
+async function logChatMessage(message) {
+  return await notion.pages.create({
+    parent: { database_id: DB_IDS.ChatMemories },
+    properties: {
+      chat_message: { title: [{ text: { content: message } }] },
+      timestamp: { date: { start: new Date().toISOString() } },
+      // Other properties like memory_area_id, keywords, etc., can be dynamically filled here
+    },
+  });
+}
+
+// Utility function to manage memory groups
+async function manageMemoryGroup(memoryId, message) {
+  const groupCode = generateGroupCode(message);
+
+  // Check if a group already exists
+  const existingGroup = await notion.databases.query({
+    database_id: DB_IDS.MemoryGroups,
+    filter: {
+      property: 'Groupcode',
+      rich_text: { equals: groupCode },
+    },
+  });
+
+  if (existingGroup.results.length > 0) {
+    // Update the existing group
+    return await notion.pages.update({
+      page_id: existingGroup.results[0].id,
+      properties: {
+        ChatMemories: { relation: [{ id: memoryId }] },
+      },
+    });
+  } else {
+    // Create a new group
+    return await notion.pages.create({
+      parent: { database_id: DB_IDS.MemoryGroups },
+      properties: {
+        GroupName: { title: [{ text: { content: `Group for ${groupCode}` } }] },
+        Groupcode: { rich_text: [{ text: { content: groupCode } }] },
+        ChatMemories: { relation: [{ id: memoryId }] },
+      },
+    });
+  }
+}
+
+// Generate a unique group code based on the message context
+function generateGroupCode(message) {
+  // Simple example: could be replaced by a more complex NLP-based code generator
+  return message.split(' ').slice(0, 3).join('-').toLowerCase();
+}
+
+// Log activity in the ActivityLog database
+async function logActivity(userId, message) {
+  await notion.pages.create({
+    parent: { database_id: DB_IDS.ActivityLog },
+    properties: {
+      Instance_Name: { title: [{ text: { content: `Activity for ${userId}` } }] },
+      Instance_Description: { rich_text: [{ text: { content: 'User interaction' } }] },
+      Instance_Chat_Quote: { rich_text: [{ text: { content: message } }] },
+      Instance_Timestamp: { date: { start: new Date().toISOString() } },
+    },
+  });
+}
+
+// Store subjective inferences in Asmo's Playground
+async function manageInferences(message) {
+  const thoughtType = determineThoughtType(message);
+  await notion.pages.create({
+    parent: { database_id: DB_IDS.AsmosPlayground },
+    properties: {
+      Name: { title: [{ text: { content: `Inference for message` } }] },
+      Thought_Type: { select: { name: thoughtType } },
+      Description: { rich_text: [{ text: { content: `Thought based on message: ${message}` } }] },
+    },
+  });
+}
+
+// Determine type of thought based on message context (simple placeholder logic)
+function determineThoughtType(message) {
+  if (message.includes('guess')) return 'guess';
+  if (message.includes('deduct')) return 'deduction';
+  return 'inference';
+}
+
+// Retrieve context including memory, preferences, and recent activities
+async function retrieveContext(userId) {
+  const chatMemories = await notion.databases.query({ database_id: DB_IDS.ChatMemories });
+  const preferences = await notion.databases.query({
+    database_id: DB_IDS.UserPreferences,
+    filter: {
+      property: 'Priority',
+      checkbox: { equals: true },
+    },
+  });
+  const recentActivities = await notion.databases.query({
+    database_id: DB_IDS.ActivityLog,
+    filter: {
+      property: 'Instance_Name',
+      text: { contains: `Activity for ${userId}` },
+    },
+    sorts: [{ property: 'Instance_Timestamp', direction: 'descending' }],
+  });
+  const asmosPlayground = await notion.databases.query({ database_id: DB_IDS.AsmosPlayground });
+
+  return {
+    memories: chatMemories.results,
+    preferences: preferences.results,
+    recentActivities: recentActivities.results,
+    inferences: asmosPlayground.results,
+  };
+}
