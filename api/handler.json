@@ -1,0 +1,25 @@
+// api/handler.js
+import { storeChatMemory, recallChatMemories } from './core/storeRecall.js';
+
+export default async function handler(req, res) {
+  try {
+    const { action_type, data } = req.body;
+
+    let result;
+    switch (action_type) {
+      case 'storeChatMemory':
+        result = await storeChatMemory(data);
+        break;
+      case 'recallChatMemories':
+        result = await recallChatMemories(data.keywords);
+        break;
+      default:
+        throw new Error('Invalid action_type');
+    }
+
+    res.status(200).json({ success: true, result });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+} 
