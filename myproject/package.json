@@ -1,0 +1,13 @@
+{
+  "name": "chatgpt-notion-memory",
+  "version": "1.0.0",
+  "description": "Core module for storing ChatGPT memories in Notion",
+  "main": "api/memory.js",
+  "dependencies": {
+    "@notionhq/client": "^1.0.4"
+  },
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  }
+}
