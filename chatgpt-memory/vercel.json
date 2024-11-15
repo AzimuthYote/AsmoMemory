@@ -1,0 +1,39 @@
+{{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/**/*.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "env": {
+    "NOTION_TOKEN": "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",
+    "DB_USER_PREFERENCES": "13a77f6525cd80ca909ee469f38b6575",
+    "DB_ACTIVITY_LOG": "13a77f6525cd80eea74adcc7d4fc6066",
+    "DB_MEMORY_AREAS": "13a77f6525cd8012b774f14846f9cd82",
+    "DB_MEMORY_GROUPS": "13a77f6525cd802fa935eb74979e8eaa",
+    "DB_CHAT_MEMORIES": "13a77f6525cd805da065d2105029897e",
+    "DB_ASMOS_PLAYGROUND": "13a77f6525cd808e8efcef6afb87de72",
+    "DB_ASMOS_SECRET_PLAN_NOTES": "13d77f6525cd80258e56c53fc417a2fe",
+    "DB_ASMOS_PLAN_DRAFTS": "13d77f6525cd80788842f4d81bed1c6b",
+    "DB_ASMOS_PLAN_FINAL_NARRATIVE": "13d77f6525cd80babfd9d447ea81a9d0",
+    "DB_DISCREET_ACTIONS": "13d77f6525cd8042b8aed2bf05f2c6dc"
+  },
+  "routes": [
+    {
+      "src": "/api/memory",
+      "dest": "/api/memory.js"
+    },
+    {
+      "src": "/api/other-endpoint",
+      "dest": "/api/other-endpoint.js"
+    }
+  ],
+  "functions": {
+    "api/**.js": {
+      "memory": 1024,
+      "maxDuration": 10
+    }
+  },
+  "regions": ["all"]
+}
