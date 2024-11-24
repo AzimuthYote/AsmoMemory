@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: asmos-memory
+    env: node
+    plan: standard
+    buildCommand: |
+      npm install
+      npm run build
+      cp -r server dist/
+    startCommand: npm start
+    rootDir: .
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: VITE_PIN
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+    healthCheckPath: /health
+    autoDeploy: true
